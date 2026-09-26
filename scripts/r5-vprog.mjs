@@ -81,7 +81,7 @@ async function lane() { const id = laneN++; let cur = RESUME.pop() || null;
     try { cur = await runProgram(eng, cur, (c) => LIVE.set(id, c)); } catch (e) { cur = null; S.prog_fail++; log({ ev: "exc", e: String(e).slice(0, 200) }); }
     LIVE.set(id, cur);
   } }
-const rep = setInterval(() => { const p = eng.pstats(); log({ ev: "rep", ...S, feerate: Number(feerate()), rate: eng.rate, paused: eng.paused, mp: eng.mp, submitted: eng.submitted, accepted: eng.accepted, rejected: eng.rejected,
+const rep = setInterval(() => { const p = eng.pstats(); log({ ev: "rep", ...S, feerate: Number(feerate()), rate: eng.rate, paused: eng.paused, mp: eng.mp, retries: eng.retries || 0, resume_stale: eng.resume_stale || 0, submitted: eng.submitted, accepted: eng.accepted, rejected: eng.rejected,
   lat_p50: p.p50, lat_p95: p.p95, lat_p99: p.p99, lat_max: p.max, lat_n: p.n, fee_tkas: Number(eng.feeBurn) / 1e8, errs: eng.errs }); }, 10000);
 await Promise.all(Array.from({ length: CONC }, () => lane()));
 clearInterval(rep); log({ ev: "done", ...S }); process.exit(0);

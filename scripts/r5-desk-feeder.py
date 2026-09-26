@@ -45,8 +45,7 @@ while True:
              "reserved_tkas": round(sum(int(u["utxoEntry"]["amount"]) for u in res) / 1e8, 1), "storm_pool_tkas": round(p), "vdaa": v,
              "low_for_s": round(now - low_since) if low_since else 0}
         open(L, "a").write(json.dumps(o) + "\n")
-        if low_since and now - low_since > 900 and not os.path.exists(EMPTY):
-            open(EMPTY, "w").write(json.dumps(o))
+        # r6: no hard stop here any more; r6-final-watch.sh owns the stop rule (income-only 30 min or 12:30)
     except Exception as e:
         open(L, "a").write(json.dumps({"t": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "err": str(e)[:200]}) + "\n")
     time.sleep(30)

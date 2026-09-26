@@ -17,3 +17,4 @@
 2026-09-26T10:07:19+0200 R5 runner rates -> 250+250 moves/s; feeder pid 3039731 faucet-only empty rule (<3k TKAS balance and mature, 15 min)
 2026-09-26T10:10:31+0200 R5 limits: taper 50-65k, gate 70k/58k, hard 74k (external storage-mass flood keeps ~57k in mempool; storm at 10x feerate outranks it). Guards unchanged: pacer 80k/40k, runners 79k/70k.
 2026-09-26T10:12:01+0200 R5 feeder pid 3059287: empty rule = mature (spendable) faucet <3k TKAS for 15 min (balance alone never reaches 0: miners keep paying the faucet)
+2026-09-26T10:13:16+0200 R5 SNAPSHOT: ttt 250 games 250 moves/s p50 0.68 p95 1.73 s; vprog 250 programs 219 steps/s p50 1.36 p95 2.84 s; illegal 34,274 tried / 0 executed; runner burn ~29.6k TKAS/min; storm 10x ~280 tx/s; net ~860 tx/s; mature faucet 42k; disk 20G; mp ~62k

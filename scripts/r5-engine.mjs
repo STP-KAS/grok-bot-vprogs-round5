@@ -10,7 +10,7 @@ import { readFileSync, writeFileSync, appendFileSync, existsSync } from "node:fs
 import { kaspa, connect, NET, deskKey, addrOf } from "./lib.mjs";
 
 export const DIR = "/workspace/tn10-break-test-2026-09-25";
-const HALT = ["/tmp/r5-games.HALT", "/tmp/r5-faucet-empty", "/tmp/tps-storm.HALT"];
+const HALT = ["/tmp/r5-games.HALT", "/tmp/tps-storm.HALT"]; // r6: faucet-empty no longer halts runners (income-only mode)
 export const halted = () => HALT.some((f) => existsSync(f));
 
 // faucet (desk key 0)
@@ -49,7 +49,7 @@ export function buildMove(inp, key, toAddr, payloadHex) {
       utxoEntry: { amount: inp.amount, scriptPublicKey: inp.spk, blockDaaScore: inp.daa || 0n, isCoinbase: inp.isCoinbase || false } }],
       [{ address: toAddr, amount: amt }], 0n, payloadHex, 1);
     kaspa.signTransaction(tx, [key], false); const f2 = feeFor(tx); if (f2 <= fee) break; fee = f2; }
-  return { tx, out: { txid: tx.id, index: 0, amount: amt, address: toAddr, spk: toSpk, key, daa: 0n }, fee };
+  return { tx, out: { txid: tx.id, index: 0, amount: amt, address: toAddr, spk: toSpk, key, daa: 0n }, fee, _resume: !!inp._resume };
 }
 
 // fund a fresh chain key from 1..n faucet seed UTXOs (all spent in ONE tx). Returns the funding output (known locally) or null.
@@ -112,7 +112,11 @@ export class Engine {
     try {
       const t0 = Date.now(); await this.rpc.submitTransaction({ transaction: built.tx, allowOrphan: false });
       this.submitted++; this.feeBurn += built.fee; this.pending.set(built.tx.id, t0); return true;
-    } catch (e) { const m = String(e.message || e).replace(/[0-9a-f]{64}/g, "<h>").replace(/\d{4,}/g, "<n>").slice(0, 100);
+    } catch (e) { const raw = String(e.message || e);
+      // r6: orphan = parent not yet visible (restart race / funding tx still propagating) -> retry up to 3x after 400 ms
+      if (/orphan/.test(raw) && (built._tries || 0) < 3) { built._tries = (built._tries || 0) + 1; this.retries = (this.retries || 0) + 1; await sleep(400); return this.submit(built); }
+      const m = raw.replace(/[0-9a-f]{64}/g, "<h>").replace(/\d{4,}/g, "<n>").slice(0, 100);
+      if (built._resume && /already spent|orphan/.test(raw)) { this.resume_stale = (this.resume_stale || 0) + 1; return false; } // stale persisted chain end: not a runtime failure
       this.errs[m] = (this.errs[m] || 0) + 1; this.rejected++; return false; }
   }
   pstats() { const l = [...this.lat].sort((a, b) => a - b); const p = (q) => l.length ? l[Math.min(l.length - 1, Math.floor(l.length * q))] : null;
@@ -130,5 +134,5 @@ export function saveChains(tag, live) {
 }
 export function loadChains(tag) {
   try { return JSON.parse(readFileSync(chainFile(tag), "utf8")).map((c) => { const key = new kaspa.PrivateKey(c.k);
-    return { txid: c.txid, index: c.index, amount: BigInt(c.amount), address: c.address, spk: kaspa.payToAddressScript(c.address), key, daa: 0n }; }); } catch { return []; }
+    return { txid: c.txid, index: c.index, amount: BigInt(c.amount), address: c.address, spk: kaspa.payToAddressScript(c.address), key, daa: 0n, _resume: true }; }); } catch { return []; }
 }
