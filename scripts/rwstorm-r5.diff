@@ -1,0 +1,52 @@
+--- rwstorm.mjs.bak-r5	2026-09-26 09:21:24.922112735 +0200
++++ rwstorm.mjs	2026-09-26 09:49:04.405412589 +0200
+@@ -11,7 +11,7 @@
+ import { kaspa, connect, log, sleep, NET, deskKey, addrOf } from "./lib.mjs";
+ const [TAG, WF, WT, P2F, P2T, DF, DT] = process.argv.slice(2).map((x, i) => i === 0 ? x : Number(x));
+ const COOL = Number(process.env.COOL || 4000), FEE_MULT = Number(process.env.FEE_MULT || 1);
+-const MIN = 10000000n; // drop leftovers < 0.1 TKAS
++const MIN = BigInt(process.env.MIN_SOMPI || 10000000); // drop leftovers < MIN (default 0.1 TKAS; r5 env MIN_SOMPI)
+ const LOW = Number(process.env.LOW || 4000), REFILL = Number(process.env.REFILL || 2000);
+ const DIR = "/workspace/tn10-break-test-2026-09-25";
+ const STATE = `${DIR}/state-rw-${TAG}.json`;
+@@ -42,6 +42,9 @@
+ const feeFor = (tx) => { const m = BigInt(kaspa.calculateTransactionMass(NET, tx)); return { m, fee: (m * BigInt(Math.round(100 * FEE_MULT))) }; };
+ let MASS1 = null, TAGFEE = null, FEE2 = null; const PAY = BigInt(process.env.PAY || 0); const P2FEE = BigInt(Math.ceil(571 * 100 * FEE_MULT));
+ const q = []; let head = 0;
++// r5: PERTX_FEE=1 -> fee = actual mass (incl. KIP-9 storage mass) x feerate per tx (fixed TAGFEE underpays small UTXOs at high multipliers)
++const PERTX = process.env.PERTX_FEE === "1";
++const leftover = (it) => { S.dropped++; try { appendFileSync(`${DIR}/state-leftover-${TAG}.jsonl`, JSON.stringify([it.w.p2sh ? "p2sh" : it.w.i, it.e.outpoint.transactionId, it.e.outpoint.index, String(it.e.utxoEntry.amount)]) + "\n"); } catch {} };
+ const key = (u) => u.outpoint.transactionId + ":" + u.outpoint.index;
+ // seed: saved state
+ if (existsSync(STATE)) { const s = JSON.parse(readFileSync(STATE, "utf8")); for (const [i, list] of Object.entries(s)) { const w = i === "p2sh" ? P2 : byI.get(Number(i)); if (w) for (const [t, x, a, n] of list) q.push({ w, e: i === "p2sh" ? { address: P2ADDR, outpoint: { transactionId: t, index: x }, utxoEntry: { amount: BigInt(a), scriptPublicKey: P2SPK, blockDaaScore: 0n, isCoinbase: false } } : ent(w, t, x, a), node: n && n !== "any" ? n : null, readyAt: 0 }); } }
+@@ -52,7 +55,7 @@
+ // Faucet top-up: the supervisor keeps /tmp/rw-desk-utxos.json (mature desk coinbase UTXOs) fresh; worker DF of DT takes
+ // entries with index % DT == DF, so workers never share an input. Only used when this worker's pool drops below LOW.
+ const DESKF = "/tmp/rw-desk-utxos.json"; let deskList = [], deskCur = 0, deskStamp = 0; const deskUsed = new Set();
+-function loadDesk() { try { const m = statSync(DESKF).mtimeMs; if (m === deskStamp) return; deskStamp = m; deskList = JSON.parse(readFileSync(DESKF, "utf8")).filter((u, j) => j % DT === DF); deskCur = 0; } catch {} }
++function loadDesk() { try { const m = statSync(DESKF).mtimeMs; if (m === deskStamp) return; deskStamp = m; deskList = JSON.parse(readFileSync(DESKF, "utf8")).filter((u) => parseInt(u.outpoint.transactionId.slice(0, 8), 16) % DT === DF); /* r5: partition by txid hash (stable across feeder refreshes) */ deskCur = 0; } catch {} }
+ function refill() { loadDesk(); let n = 0; while (n < REFILL && deskCur < deskList.length) { const u = deskList[deskCur++]; const kk = u.outpoint.transactionId + ":" + u.outpoint.index; if (deskUsed.has(kk)) continue; deskUsed.add(kk); q.push({ w: DW, desk: true, e: { address: DW.address, outpoint: u.outpoint, utxoEntry: { amount: BigInt(u.utxoEntry.amount), scriptPublicKey: DW.spk, blockDaaScore: BigInt(u.utxoEntry.blockDaaScore), isCoinbase: true } }, node: null, readyAt: 0 }); n++; } S.refills += n; return n; }
+ const bump = (e) => { const m = String(e?.message || e).replace(/[0-9a-f]{64}/g, "<h>").replace(/\d{4,}/g, "<n>").slice(0, 140); S.errs[m] = (S.errs[m] || 0) + 1; S.err++; };
+ const PREF = process.env.PREF || "any"; const AFF = process.env.AFFINITY !== "0";
+@@ -73,7 +76,10 @@
+   let tx, fee;
+   if (it.w.p2sh || it.w.tagw) { const ss = it.w.p2sh ? "0151" : it.w.sigScript;
+     if (!it.w.p2sh && !TAGFEE) { const t = kaspa.createTransaction([it.e], [{ address: to.address, amount: it.e.utxoEntry.amount - 1n }], 0n, null, 0); t.inputs[0].signatureScript = ss; TAGFEE = feeFor(t).fee; }
+-    fee = it.w.p2sh ? P2FEE : TAGFEE; const amt = it.e.utxoEntry.amount - fee; if (amt < MIN) return;
++    fee = it.w.p2sh ? P2FEE : TAGFEE;
++    if (PERTX) { const t = kaspa.createTransaction([it.e], [{ address: to.address, amount: it.e.utxoEntry.amount - fee }], 0n, null, 0); t.inputs[0].signatureScript = ss; fee = feeFor(t).fee;
++      const t2 = kaspa.createTransaction([it.e], [{ address: to.address, amount: it.e.utxoEntry.amount - fee }], 0n, null, 0); t2.inputs[0].signatureScript = ss; fee = feeFor(t2).fee * 105n / 100n; }
++    const amt = it.e.utxoEntry.amount - fee; if (amt < MIN) { leftover(it); return; }
+     tx = kaspa.createTransaction([it.e], [{ address: to.address, amount: amt }], 0n, null, 0); tx.inputs[0].signatureScript = ss;
+   } else { tx = kaspa.createTransaction([it.e], [{ address: to.address, amount: it.e.utxoEntry.amount - 1n }], 0n, null, 1);
+     if (!MASS1) MASS1 = feeFor(tx); fee = MASS1.fee; const amt = it.e.utxoEntry.amount - fee; if (amt < MIN) return;
+@@ -83,7 +89,8 @@
+   let split = false;
+   if (PAY && !it.w.p2sh && it.e.utxoEntry.amount > PAY + 100000000n && to.i !== it.w.i) {
+     const mk = (f) => { const t = kaspa.createTransaction([it.e], [{ address: to.address, amount: PAY }, { address: it.w.address, amount: it.e.utxoEntry.amount - PAY - f }], 0n, null, it.w.tagw ? 0 : 1); if (it.w.tagw) t.inputs[0].signatureScript = it.w.sigScript; else kaspa.signTransaction(t, [it.w.key], false); return t; };
+-    if (!FEE2) FEE2 = feeFor(mk(0n)).fee; fee = FEE2; tx = mk(fee); split = true; S.pay++;
++    if (!FEE2) FEE2 = feeFor(mk(0n)).fee;
++    if (it.e.utxoEntry.amount > PAY + FEE2 + MIN) { fee = FEE2; tx = mk(fee); split = true; S.pay++; } // r5: at 150x FEE2 (~20k storage-mass grams) can exceed the input -> negative change crashed H
+   }
+   const amt = tx.outputs[0].value; const node = pickNode(it);
+   if (!node || !RPC[node]) { it.readyAt = Date.now() + 500; q.push(it); return; }

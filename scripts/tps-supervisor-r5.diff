@@ -1,0 +1,11 @@
+--- tps-supervisor.py.bak-r5	2026-09-26 09:21:24.922112735 +0200
++++ tps-supervisor.py	2026-09-26 09:21:24.934112672 +0200
+@@ -31,7 +31,7 @@
+ for k in range(8):
+     a = k * 500
+     W.append((f"P{k}", ["node", f"{D}/scripts/rwstorm.mjs", f"P{k}", str(a), str(a + 500), str(k * 25000), str((k + 1) * 25000), str(k), "8"],
+-              {"MODE": "p2w", "AFFINITY": "0", "NODES": " ".join(JP), "COOL": "4000", "FEE_MULT": os.environ.get("FEE_MULT_P", "2.0"), "LOW": "0"}))
++              {"MODE": "p2w", "AFFINITY": "0", "NODES": " ".join(JP), "COOL": "4000", "FEE_MULT": os.environ.get("FEE_MULT_P", "2.0"), "LOW": os.environ.get("LOW_P", "0"), "REFILL": os.environ.get("REFILL_P", "2000")}))  # r5: LOW_P>0 enables faucet top-up from /tmp/rw-desk-utxos.json
+ # 0.5 TKAS random lane: signed P2PK storm wallets 0-399, seeded from the last P2SH slice, PAY=0.5 TKAS, random pairs.
+ W.append(("H", ["node", f"{D}/scripts/rwstorm.mjs", "H", "0", "400", "200000", "207042", "0", "1"],
+           {"MODE": "sig", "PAY": "50000000", "NODES": " ".join(JP), "AFFINITY": "1", "COOL": "3000", "FEE_MULT": os.environ.get("FEE_MULT_P", "2.0"), "LOW": "0", "CONC": "8", "CONCFILE": "/tmp/tps-storm-h.conc"}))
