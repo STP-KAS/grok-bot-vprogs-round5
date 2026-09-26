@@ -38,7 +38,7 @@ while True:
         for f, x in ((OUT, storm), (RES, res)):
             open(f + ".tmp", "w").write(json.dumps(x)); os.replace(f + ".tmp", f)
         p = pool(); now = time.time()
-        if bal < EMPTY_TKAS and sum(int(u["utxoEntry"]["amount"]) for u in mat) / 1e8 < EMPTY_TKAS: low_since = low_since or now  # r5 10:08: faucet-only rule (storm pool is separate); our miners refill the faucet (~1k TKAS/min + ~57% of fees), so "empty" = balance AND mature < EMPTY_TKAS for 15 min
+        if sum(int(u["utxoEntry"]["amount"]) for u in mat) / 1e8 < EMPTY_TKAS: low_since = low_since or now  # r5 10:14: "effectively empty" = spendable (mature) faucet < EMPTY_TKAS for 15 min; the balance never hits 0 while miners keep paying it (immature coinbase + fee return)  # r5 10:08: faucet-only rule (storm pool is separate); our miners refill the faucet (~1k TKAS/min + ~57% of fees), so "empty" = balance AND mature < EMPTY_TKAS for 15 min
         else: low_since = None
         o = {"t": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "faucet_tkas": round(bal, 1), "utxos": len(us), "mature": len(mat),
              "mature_tkas": round(sum(int(u["utxoEntry"]["amount"]) for u in mat) / 1e8, 1), "storm_list": len(storm), "reserved": len(res),

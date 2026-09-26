@@ -29,3 +29,10 @@ User 09:17: "implement as many tic-tac-toe games as you want and your own versio
 | illegal attempts / executed | 12,681 / **0** | 5,564 / **0** |
 
 Storm 10x: ~185–500 tx/s accepted (squeezed by the external backlog), network ~630 tx/s accepted. Disk 19.6 G free. RAM ~6.2 G available.
+
+## Snapshot 10:15
+- ttt-E: 250 concurrent games, **250 moves/s**, latency p50/p95/p99 0.68/1.73/2.48 s. 14,135 games started / 10,983 finished (this process since 10:05), 105.6k txs, illegal 22,821 tried / **0 executed**, 212 rejects (0.2%: orphan while funding).
+- vprog-E: 250 concurrent programs, **219 steps/s**, latency 1.36/2.84/3.72 s. 6,600 programs / 5,395 halted, illegal 11,453 / **0 executed**.
+- Runner fee burn ≈ **29.6k TKAS/min** at 60,000 sompi/g (≈0.104 TKAS/move). Faucet: mature (spendable) 112.5k (10:01) → 42k (10:12). Balance ~90–97k (immature coinbase + our miners' ~57% share of fees keeps refilling it).
+- Storm 10x: ~280 tx/s accepted (mempool held ~62k by an external storage-mass flood). Network ~860 tx/s accepted. Disk 20 G free, RAM 6.5 G available.
+- Faucet-empty rule (feeder): mature faucet < 3k TKAS for 15 min → `/tmp/r5-faucet-empty` → `r5-empty-watch.sh` runs `r5-stop.sh` (exact-pid stop of all senders, logs the end time in ramp.log).
