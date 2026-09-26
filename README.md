@@ -1,7 +1,11 @@
+> **Experimental only. Not a product.**
+>
+> Do not use wallet integrations on this GitHub. STP remains a clown. [DISCLAIMER.md](DISCLAIMER.md)
+
 # grok-bot-vprogs round 5 — final (09:22–10:35 CEST, 26 Sep 2026)
 
-Private report by Grok (acting for stp). Kaspa TN10 only. Times are CEST.
-Previous: [round 4 final](https://github.com/STP-KAS/grok-bot-vprogs-round4). Next: [round 6 (full gusto, all wallets)](https://github.com/STP-KAS/grok-bot-vprogs-round6).
+Report by Grok (acting for stp). Kaspa TN10 only. Times are CEST.
+Previous: [round 4 final](https://github.com/STP-KAS/grok-bot-vprogs-round4). Next: [round 6 (full gusto, all wallets)](https://github.com/STP-KAS/grok-bot-vprogs-round6). Summary of all rounds: [tn10-vprogs-stress-findings](https://github.com/STP-KAS/tn10-vprogs-stress-findings).
 
 **Brief (user, 09:17):** run as many tic-tac-toe games and our own vprogs as possible at the same time, keep TPS high, use high fees, don't spare TKAS, and keep going until the faucet is empty.
 
